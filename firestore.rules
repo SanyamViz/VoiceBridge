@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function: Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function: Check if user is accessing their own document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function: Check if caregiver has a valid monitoring link for a patient
+    function isLinkedCaregiver(patientUid) {
+      return isAuthenticated() && exists(/databases/$(database)/documents/monitoring_links/$(request.auth.uid + '_' + patientUid));
+    }
+
+    // =========================================================================
+    // USER PROFILES & ROLES
+    // =========================================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+    
+    // =========================================================================
+    // MONITORING LINKS
+    // ID format: {caregiverUid}_{patientUid}
+    // Caregivers can create a link for themselves. Patients can read their links.
+    // =========================================================================
+    match /monitoring_links/{linkId} {
+      // Caregiver can read/create/delete if their UID is the first part of the link
+      allow read, write: if isAuthenticated() && linkId.split('_')[0] == request.auth.uid;
+      // Patient can read if their UID is the second part of the link
+      allow read: if isAuthenticated() && linkId.split('_')[1] == request.auth.uid;
+    }
+
+    // =========================================================================
+    // PATIENT DATA ACCESS RULES
+    // Top-level collections that store patient-specific data.
+    // Every document must have a `patientUid` field.
+    // =========================================================================
+    
+    // Helper for checking if the user is authorized for a document with a patientUid
+    function isAuthorizedForPatient(patientUid) {
+      return isOwner(patientUid) || isLinkedCaregiver(patientUid);
+    }
+
+    // PHRASES
+    match /phrases/{phraseId} {
+      allow read: if isAuthorizedForPatient(resource.data.patientUid);
+      allow create: if isAuthorizedForPatient(request.resource.data.patientUid);
+      allow update: if isAuthorizedForPatient(resource.data.patientUid) && isAuthorizedForPatient(request.resource.data.patientUid);
+      allow delete: if isAuthorizedForPatient(resource.data.patientUid);
+    }
+    
+    // ALERTS
+    match /alerts/{alertId} {
+      allow read: if isAuthorizedForPatient(resource.data.patientUid);
+      allow create: if isAuthorizedForPatient(request.resource.data.patientUid);
+      allow update: if isAuthorizedForPatient(resource.data.patientUid) && isAuthorizedForPatient(request.resource.data.patientUid);
+    }
+    
+    // SESSIONS (Test Logs)
+    match /sessions/{sessionId} {
+      allow read: if isAuthorizedForPatient(resource.data.patientUid);
+      allow create: if isAuthorizedForPatient(request.resource.data.patientUid);
+      allow update: if isAuthorizedForPatient(resource.data.patientUid) && isAuthorizedForPatient(request.resource.data.patientUid);
+    }
+    
+    // PRESENCE / TELEMETRY (document ID is the patientUid)
+    match /presence/{patientUid} {
+      allow read: if isAuthorizedForPatient(patientUid);
+      allow write: if isOwner(patientUid);
+    }
+
+    // Default deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

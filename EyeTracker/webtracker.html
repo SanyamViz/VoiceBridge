@@ -1,0 +1,2261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Eye Tracking Prototype</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* CAMERA */
+
+    #cameraContainer {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 320px;
+      height: 240px;
+
+      background: black;
+      border: 2px solid #444;
+      border-radius: 10px;
+
+      overflow: hidden;
+      z-index: 20;
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+
+      object-fit: cover;
+
+      transform: scaleX(-1);
+    }
+
+    #faceCanvas {
+      position: absolute;
+
+      inset: 0;
+
+      width: 100%;
+      height: 100%;
+
+      pointer-events: none;
+
+      transform: scaleX(-1);
+    }
+
+    /* CONTROLS */
+
+    #controls {
+      position: absolute;
+
+      top: 20px;
+      right: 20px;
+
+      width: 280px;
+
+      padding: 18px;
+
+      background: rgba(30, 30, 30, 0.96);
+
+      border: 1px solid #444;
+      border-radius: 12px;
+
+      z-index: 40;
+    }
+
+    #controls h2 {
+      margin: 0 0 15px;
+
+      font-size: 19px;
+    }
+
+    button {
+      width: 100%;
+
+      padding: 11px;
+
+      margin-top: 8px;
+
+      border: 0;
+      border-radius: 7px;
+
+      background: #287cf0;
+
+      color: white;
+
+      font-size: 15px;
+
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) {
+      background: #1767d5;
+    }
+
+    button:disabled {
+      opacity: 0.45;
+
+      cursor: not-allowed;
+    }
+
+    #status {
+      margin-top: 14px;
+
+      padding: 10px;
+
+      min-height: 40px;
+
+      background: rgba(0, 0, 0, 0.35);
+
+      border-radius: 6px;
+
+      font-size: 13px;
+
+      line-height: 1.45;
+
+      color: #ccc;
+    }
+
+    /* CALIBRATION */
+
+    #calibration {
+      position: absolute;
+
+      inset: 0;
+
+      display: none;
+
+      background: #151515;
+
+      z-index: 80;
+    }
+
+    #calibrationMessage {
+      position: absolute;
+
+      top: 25px;
+      left: 50%;
+
+      transform: translateX(-50%);
+
+      text-align: center;
+
+      font-size: 19px;
+
+      z-index: 90;
+    }
+
+    #calibrationMessage small {
+      color: #aaa;
+
+      font-size: 14px;
+    }
+
+    .calibrationPoint {
+      position: absolute;
+
+      width: 28px;
+      height: 28px;
+
+      margin-left: -14px;
+      margin-top: -14px;
+
+      border-radius: 50%;
+
+      background: red;
+
+      border: 3px solid white;
+
+      box-shadow:
+        0 0 12px rgba(255, 0, 0, 0.8);
+
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+
+      70% {
+        transform: scale(1.1);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    /* GAZE CURSOR */
+
+    #gazeCursor {
+      position: absolute;
+
+      width: 28px;
+      height: 28px;
+
+      margin-left: -14px;
+      margin-top: -14px;
+
+      border-radius: 50%;
+
+      background: rgba(255, 50, 50, 0.82);
+
+      border: 3px solid white;
+
+      box-shadow:
+        0 0 15px rgba(255, 0, 0, 0.8);
+
+      pointer-events: none;
+
+      z-index: 100;
+
+      display: none;
+    }
+
+    /* DEBUG */
+
+    #debug {
+      position: absolute;
+
+      bottom: 20px;
+      left: 20px;
+
+      min-width: 260px;
+
+      padding: 12px;
+
+      background: rgba(0, 0, 0, 0.82);
+
+      border-radius: 8px;
+
+      font-family: Consolas, monospace;
+
+      font-size: 13px;
+
+      line-height: 1.6;
+
+      z-index: 30;
+    }
+
+    .debugLabel {
+      color: #999;
+    }
+
+    /* ERROR */
+
+    #errorBox {
+      position: absolute;
+
+      top: 50%;
+      left: 50%;
+
+      transform: translate(-50%, -50%);
+
+      width: min(620px, 90vw);
+
+      padding: 20px;
+
+      background: rgba(40, 10, 10, 0.98);
+
+      border: 1px solid #aa4444;
+
+      border-radius: 10px;
+
+      display: none;
+
+      z-index: 200;
+    }
+
+    #errorBox h3 {
+      margin-top: 0;
+
+      color: #ff7777;
+    }
+
+    #errorText {
+      white-space: pre-wrap;
+
+      font-family: Consolas, monospace;
+
+      font-size: 13px;
+
+      line-height: 1.5;
+
+      color: #ddd;
+    }
+
+    #closeError {
+      width: auto;
+
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="app">
+
+    <!-- CAMERA -->
+
+    <div id="cameraContainer">
+
+      <video id="video" autoplay playsinline muted>
+      </video>
+
+      <canvas id="faceCanvas"></canvas>
+
+    </div>
+
+
+    <!-- CONTROLS -->
+
+    <div id="controls">
+
+      <h2>Eye Tracking Prototype</h2>
+
+      <button id="startButton">
+        Start Camera
+      </button>
+
+      <button id="calibrateButton" disabled>
+        Start Calibration
+      </button>
+
+      <button id="stopButton" disabled>
+        Stop Camera
+      </button>
+
+      <div id="status">
+        Ready. Click "Start Camera".
+      </div>
+
+    </div>
+
+
+    <!-- CALIBRATION -->
+
+    <div id="calibration">
+
+      <div id="calibrationMessage">
+        Look at the red dot.
+      </div>
+
+    </div>
+
+
+    <!-- GAZE CURSOR -->
+
+    <div id="gazeCursor"></div>
+
+
+    <!-- DEBUG -->
+
+    <div id="debug">
+
+      <div>
+        <span class="debugLabel">
+          Gaze X:
+        </span>
+
+        <span id="gazeX">
+          ---
+        </span>
+      </div>
+
+      <div>
+        <span class="debugLabel">
+          Gaze Y:
+        </span>
+
+        <span id="gazeY">
+          ---
+        </span>
+      </div>
+
+      <div>
+        <span class="debugLabel">
+          Raw X:
+        </span>
+
+        <span id="rawX">
+          ---
+        </span>
+      </div>
+
+      <div>
+        <span class="debugLabel">
+          Raw Y:
+        </span>
+
+        <span id="rawY">
+          ---
+        </span>
+      </div>
+
+      <div>
+        <span class="debugLabel">
+          Face:
+        </span>
+
+        <span id="faceStatus">
+          Not detected
+        </span>
+      </div>
+
+      <div>
+        <span class="debugLabel">
+          FPS:
+        </span>
+
+        <span id="fps">
+          ---
+        </span>
+      </div>
+
+    </div>
+
+
+    <!-- ERROR -->
+
+    <div id="errorBox">
+
+      <h3>
+        Error
+      </h3>
+
+      <div id="errorText"></div>
+
+      <button id="closeError">
+        Close
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- ======================================================
+       APPLICATION
+       ====================================================== -->
+
+  <script type="module">
+
+    /*
+    ============================================================
+    DOM
+    ============================================================
+    */
+
+    const video =
+      document.getElementById("video");
+
+    const faceCanvas =
+      document.getElementById("faceCanvas");
+
+    const faceCtx =
+      faceCanvas.getContext("2d");
+
+    const startButton =
+      document.getElementById("startButton");
+
+    const stopButton =
+      document.getElementById("stopButton");
+
+    const calibrateButton =
+      document.getElementById("calibrateButton");
+
+    const statusElement =
+      document.getElementById("status");
+
+    const calibration =
+      document.getElementById("calibration");
+
+    const calibrationMessage =
+      document.getElementById("calibrationMessage");
+
+    const gazeCursor =
+      document.getElementById("gazeCursor");
+
+    const gazeXElement =
+      document.getElementById("gazeX");
+
+    const gazeYElement =
+      document.getElementById("gazeY");
+
+    const rawXElement =
+      document.getElementById("rawX");
+
+    const rawYElement =
+      document.getElementById("rawY");
+
+    const faceStatusElement =
+      document.getElementById("faceStatus");
+
+    const fpsElement =
+      document.getElementById("fps");
+
+    const errorBox =
+      document.getElementById("errorBox");
+
+    const errorText =
+      document.getElementById("errorText");
+
+    const closeError =
+      document.getElementById("closeError");
+
+
+    /*
+    ============================================================
+    STATE
+    ============================================================
+    */
+
+    let faceLandmarker = null;
+
+    let cameraStream = null;
+
+    let tracking = false;
+
+    let mediaPipeLoading = false;
+
+    let lastVideoTime = -1;
+
+    let rawGazeX = 0.5;
+    let rawGazeY = 0.5;
+
+    let smoothGazeX = 0.5;
+    let smoothGazeY = 0.5;
+
+    let calibrationSamples = [];
+
+    let mapX = {
+      scale: 1,
+      offset: 0
+    };
+
+    let mapY = {
+      scale: 1,
+      offset: 0
+    };
+
+    let fpsFrames = 0;
+
+    let fpsLastTime =
+      performance.now();
+
+    let calibrationRunning = false;
+
+
+    /*
+    ============================================================
+    IRIS / EYE LANDMARKS
+    ============================================================
+    */
+
+    const LEFT_IRIS = 477;
+
+    const RIGHT_IRIS = 472;
+
+    const LEFT_EYE_OUTER = 33;
+
+    const LEFT_EYE_INNER = 133;
+
+    const RIGHT_EYE_INNER = 362;
+
+    const RIGHT_EYE_OUTER = 263;
+
+    const LEFT_EYE_TOP = 159;
+
+    const LEFT_EYE_BOTTOM = 145;
+
+    const RIGHT_EYE_TOP = 386;
+
+    const RIGHT_EYE_BOTTOM = 374;
+
+
+    /*
+    ============================================================
+    STATUS
+    ============================================================
+    */
+
+    function setStatus(message) {
+
+      statusElement.textContent =
+        message;
+
+      console.log(
+        "[EyeTracker]",
+        message
+      );
+
+    }
+
+
+    /*
+    ============================================================
+    ERROR HANDLING
+    ============================================================
+    */
+
+    function showError(error) {
+
+      console.error(
+        "[EyeTracker ERROR]",
+        error
+      );
+
+      let message;
+
+      if (error instanceof Error) {
+
+        message =
+          `${error.name}: ${error.message}`;
+
+        if (error.stack) {
+
+          message +=
+            "\n\n" +
+            error.stack;
+
+        }
+
+      }
+
+      else {
+
+        message =
+          String(error);
+
+      }
+
+      errorText.textContent =
+        message;
+
+      errorBox.style.display =
+        "block";
+
+    }
+
+
+    closeError.addEventListener(
+      "click",
+      () => {
+
+        errorBox.style.display =
+          "none";
+
+      }
+    );
+
+
+    /*
+    ============================================================
+    LOAD MEDIAPIPE
+    ============================================================
+
+    Everything is LOCAL.
+
+    There are NO CDN requests.
+
+    Expected files:
+
+        ./vision_bundle.mjs
+
+        ./wasm/
+            vision_wasm_internal.js
+            vision_wasm_internal.wasm
+            vision_wasm_nosimd_internal.js
+            vision_wasm_nosimd_internal.wasm
+
+        ./face_landmarker.task
+
+    ============================================================
+    */
+
+    async function initializeMediaPipe() {
+
+      if (faceLandmarker) {
+
+        return;
+
+      }
+
+      if (mediaPipeLoading) {
+
+        while (
+          mediaPipeLoading &&
+          !faceLandmarker
+        ) {
+
+          await sleep(50);
+
+        }
+
+        return;
+
+      }
+
+      mediaPipeLoading = true;
+
+      try {
+
+        setStatus(
+          "Loading local MediaPipe library..."
+        );
+
+
+        /*
+        --------------------------------------------------------
+        LOCAL ES MODULE
+        --------------------------------------------------------
+        */
+
+        const mediaPipeModule =
+          await import(
+            "./vision_bundle.mjs"
+          );
+
+
+        const FaceLandmarker =
+          mediaPipeModule.FaceLandmarker;
+
+        const FilesetResolver =
+          mediaPipeModule.FilesetResolver;
+
+
+        if (!FaceLandmarker) {
+
+          throw new Error(
+            "FaceLandmarker was not exported by vision_bundle.mjs."
+          );
+
+        }
+
+
+        if (!FilesetResolver) {
+
+          throw new Error(
+            "FilesetResolver was not exported by vision_bundle.mjs."
+          );
+
+        }
+
+
+        /*
+        --------------------------------------------------------
+        LOCAL WASM
+        --------------------------------------------------------
+        */
+
+        setStatus(
+          "Loading local MediaPipe WASM..."
+        );
+
+
+        const vision =
+          await FilesetResolver.forVisionTasks(
+            "./wasm"
+          );
+
+
+        /*
+        --------------------------------------------------------
+        LOCAL MODEL
+        --------------------------------------------------------
+        */
+
+        setStatus(
+          "Loading local face model..."
+        );
+
+
+        faceLandmarker =
+          await FaceLandmarker.createFromOptions(
+            vision,
+            {
+
+              baseOptions: {
+
+                modelAssetPath:
+                  "./face_landmarker.task",
+
+                delegate:
+                  "CPU"
+
+              },
+
+              runningMode:
+                "VIDEO",
+
+              numFaces:
+                1,
+
+              minFaceDetectionConfidence:
+                0.5,
+
+              minFacePresenceConfidence:
+                0.5,
+
+              minTrackingConfidence:
+                0.5
+
+            }
+          );
+
+
+        if (!faceLandmarker) {
+
+          throw new Error(
+            "MediaPipe FaceLandmarker failed to initialize."
+          );
+
+        }
+
+
+        setStatus(
+          "MediaPipe loaded successfully."
+        );
+
+      }
+
+      catch (error) {
+
+        faceLandmarker = null;
+
+        throw new Error(
+          "MediaPipe failed to load locally.\n\n" +
+          "Check that these files exist:\n\n" +
+          "vision_bundle.mjs\n" +
+          "face_landmarker.task\n" +
+          "wasm/vision_wasm_internal.js\n" +
+          "wasm/vision_wasm_internal.wasm\n" +
+          "wasm/vision_wasm_nosimd_internal.js\n" +
+          "wasm/vision_wasm_nosimd_internal.wasm\n\n" +
+          "Original error:\n" +
+          error
+        );
+
+      }
+
+      finally {
+
+        mediaPipeLoading =
+          false;
+
+      }
+
+    }
+
+
+    /*
+    ============================================================
+    START CAMERA
+    ============================================================
+    */
+
+    async function startCamera() {
+
+      if (tracking) {
+
+        return;
+
+      }
+
+
+      startButton.disabled =
+        true;
+
+
+      try {
+
+        /*
+        --------------------------------------------------------
+        CAMERA
+        --------------------------------------------------------
+        */
+
+        setStatus(
+          "Requesting camera permission..."
+        );
+
+
+        if (
+          !navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia
+        ) {
+
+          throw new Error(
+            "getUserMedia is unavailable.\n\n" +
+            "Make sure you opened this page using:\n" +
+            "http://localhost:8000/\n\n" +
+            "rather than file://."
+          );
+
+        }
+
+
+        cameraStream =
+          await navigator.mediaDevices.getUserMedia(
+            {
+
+              video: {
+
+                width: {
+                  ideal: 640
+                },
+
+                height: {
+                  ideal: 480
+                },
+
+                facingMode:
+                  "user"
+
+              },
+
+              audio:
+                false
+
+            }
+          );
+
+
+        video.srcObject =
+          cameraStream;
+
+
+        await video.play();
+
+
+        /*
+        --------------------------------------------------------
+        WAIT FOR ACTUAL VIDEO DIMENSIONS
+        --------------------------------------------------------
+        */
+
+        await waitForVideo();
+
+
+        faceCanvas.width =
+          video.videoWidth;
+
+        faceCanvas.height =
+          video.videoHeight;
+
+
+        /*
+        --------------------------------------------------------
+        MEDIAPIPE
+        --------------------------------------------------------
+        */
+
+        await initializeMediaPipe();
+
+
+        /*
+        --------------------------------------------------------
+        TRACKING
+        --------------------------------------------------------
+        */
+
+        tracking =
+          true;
+
+        stopButton.disabled =
+          false;
+
+        calibrateButton.disabled =
+          false;
+
+        startButton.disabled =
+          true;
+
+
+        setStatus(
+          "Ready. Start calibration."
+        );
+
+
+        requestAnimationFrame(
+          trackingLoop
+        );
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "STARTUP ERROR:",
+          error
+        );
+
+
+        stopCamera();
+
+
+        showError(error);
+
+
+        setStatus(
+          "Startup failed."
+        );
+
+      }
+
+    }
+
+
+    /*
+    ============================================================
+    STOP CAMERA
+    ============================================================
+    */
+
+    function stopCamera() {
+
+      tracking =
+        false;
+
+
+      if (cameraStream) {
+
+        cameraStream
+          .getTracks()
+          .forEach(
+            track =>
+              track.stop()
+          );
+
+        cameraStream =
+          null;
+
+      }
+
+
+      video.srcObject =
+        null;
+
+
+      startButton.disabled =
+        false;
+
+      stopButton.disabled =
+        true;
+
+      calibrateButton.disabled =
+        true;
+
+
+      gazeCursor.style.display =
+        "none";
+
+
+      faceStatusElement.textContent =
+        "Not detected";
+
+
+      fpsElement.textContent =
+        "---";
+
+
+      setStatus(
+        "Camera stopped."
+      );
+
+    }
+
+
+    /*
+    ============================================================
+    TRACKING LOOP
+    ============================================================
+    */
+
+    function trackingLoop(timestamp) {
+
+      if (!tracking) {
+
+        return;
+
+      }
+
+
+      fpsFrames++;
+
+
+      if (
+        timestamp -
+        fpsLastTime >=
+        1000
+      ) {
+
+        fpsElement.textContent =
+          fpsFrames;
+
+        fpsFrames =
+          0;
+
+        fpsLastTime =
+          timestamp;
+
+      }
+
+
+      if (
+        faceLandmarker &&
+        video.readyState >= 2 &&
+        video.currentTime !==
+        lastVideoTime
+      ) {
+
+        lastVideoTime =
+          video.currentTime;
+
+
+        try {
+
+          const result =
+            faceLandmarker.detectForVideo(
+              video,
+              timestamp
+            );
+
+
+          processFaceResult(
+            result
+          );
+
+        }
+
+        catch (error) {
+
+          console.error(
+            "Detection error:",
+            error
+          );
+
+        }
+
+      }
+
+
+      requestAnimationFrame(
+        trackingLoop
+      );
+
+    }
+
+
+    /*
+    ============================================================
+    PROCESS FACE
+    ============================================================
+    */
+
+    function processFaceResult(
+      result
+    ) {
+
+      if (
+        !result.faceLandmarks ||
+        result.faceLandmarks.length === 0
+      ) {
+
+        faceStatusElement.textContent =
+          "Not detected";
+
+        return;
+
+      }
+
+
+      faceStatusElement.textContent =
+        "Detected";
+
+
+      const landmarks =
+        result.faceLandmarks[0];
+
+
+      const eye =
+        getEyePosition(
+          landmarks
+        );
+
+
+      rawGazeX =
+        eye.x;
+
+      rawGazeY =
+        eye.y;
+
+
+      rawXElement.textContent =
+        rawGazeX.toFixed(3);
+
+      rawYElement.textContent =
+        rawGazeY.toFixed(3);
+
+
+      /*
+      --------------------------------------------------------
+      SMOOTHING
+      --------------------------------------------------------
+      */
+
+      const alpha =
+        0.15;
+
+
+      smoothGazeX +=
+        alpha *
+        (
+          rawGazeX -
+          smoothGazeX
+        );
+
+
+      smoothGazeY +=
+        alpha *
+        (
+          rawGazeY -
+          smoothGazeY
+        );
+
+
+      /*
+      --------------------------------------------------------
+      SCREEN MAPPING
+      --------------------------------------------------------
+      */
+
+      if (
+        calibrationSamples.length >= 3
+      ) {
+
+        const screenX =
+          mapX.scale *
+          smoothGazeX +
+          mapX.offset;
+
+
+        const screenY =
+          mapY.scale *
+          smoothGazeY +
+          mapY.offset;
+
+
+        const x =
+          Math.max(
+            0,
+            Math.min(
+              window.innerWidth,
+              screenX
+            )
+          );
+
+
+        const y =
+          Math.max(
+            0,
+            Math.min(
+              window.innerHeight,
+              screenY
+            )
+          );
+
+
+        gazeCursor.style.display =
+          "block";
+
+
+        gazeCursor.style.left =
+          `${x}px`;
+
+
+        gazeCursor.style.top =
+          `${y}px`;
+
+
+        gazeXElement.textContent =
+          Math.round(x);
+
+
+        gazeYElement.textContent =
+          Math.round(y);
+
+      }
+
+
+      /*
+      --------------------------------------------------------
+      DEBUG IRIS
+      --------------------------------------------------------
+      */
+
+      drawDebugIris(
+        landmarks
+      );
+
+    }
+
+
+    /*
+    ============================================================
+    EYE POSITION
+    ============================================================
+    */
+
+    function getEyePosition(
+      landmarks
+    ) {
+
+      const leftIris =
+        landmarks[LEFT_IRIS];
+
+      const rightIris =
+        landmarks[RIGHT_IRIS];
+
+
+      const leftOuter =
+        landmarks[LEFT_EYE_OUTER];
+
+      const leftInner =
+        landmarks[LEFT_EYE_INNER];
+
+
+      const rightInner =
+        landmarks[RIGHT_EYE_INNER];
+
+      const rightOuter =
+        landmarks[RIGHT_EYE_OUTER];
+
+
+      const leftTop =
+        landmarks[LEFT_EYE_TOP];
+
+      const leftBottom =
+        landmarks[LEFT_EYE_BOTTOM];
+
+
+      const rightTop =
+        landmarks[RIGHT_EYE_TOP];
+
+      const rightBottom =
+        landmarks[RIGHT_EYE_BOTTOM];
+
+
+      if (
+        !leftIris ||
+        !rightIris ||
+        !leftOuter ||
+        !leftInner ||
+        !rightInner ||
+        !rightOuter ||
+        !leftTop ||
+        !leftBottom ||
+        !rightTop ||
+        !rightBottom
+      ) {
+
+        return {
+          x: 0.5,
+          y: 0.5
+        };
+
+      }
+
+
+      /*
+      --------------------------------------------------------
+      HORIZONTAL EYE POSITION
+      --------------------------------------------------------
+      */
+
+      const leftWidth =
+        leftInner.x -
+        leftOuter.x;
+
+
+      const rightWidth =
+        rightOuter.x -
+        rightInner.x;
+
+
+      /*
+      --------------------------------------------------------
+      VERTICAL EYE POSITION
+      --------------------------------------------------------
+      */
+
+      const leftHeight =
+        leftBottom.y -
+        leftTop.y;
+
+
+      const rightHeight =
+        rightBottom.y -
+        rightTop.y;
+
+
+      let leftX =
+        0.5;
+
+      let rightX =
+        0.5;
+
+      let leftY =
+        0.5;
+
+      let rightY =
+        0.5;
+
+
+      if (
+        Math.abs(leftWidth) >
+        0.0001
+      ) {
+
+        leftX =
+          (
+            leftIris.x -
+            leftOuter.x
+          ) /
+          leftWidth;
+
+      }
+
+
+      if (
+        Math.abs(rightWidth) >
+        0.0001
+      ) {
+
+        rightX =
+          (
+            rightIris.x -
+            rightInner.x
+          ) /
+          rightWidth;
+
+      }
+
+
+      if (
+        Math.abs(leftHeight) >
+        0.0001
+      ) {
+
+        leftY =
+          (
+            leftIris.y -
+            leftTop.y
+          ) /
+          leftHeight;
+
+      }
+
+
+      if (
+        Math.abs(rightHeight) >
+        0.0001
+      ) {
+
+        rightY =
+          (
+            rightIris.y -
+            rightTop.y
+          ) /
+          rightHeight;
+
+      }
+
+
+      let x =
+        (
+          leftX +
+          rightX
+        ) / 2;
+
+
+      let y =
+        (
+          leftY +
+          rightY
+        ) / 2;
+
+
+      x =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            x
+          )
+        );
+
+
+      y =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            y
+          )
+        );
+
+
+      return {
+        x,
+        y
+      };
+
+    }
+
+
+    /*
+    ============================================================
+    DEBUG IRIS
+    ============================================================
+    */
+
+    function drawDebugIris(
+      landmarks
+    ) {
+
+      faceCtx.clearRect(
+        0,
+        0,
+        faceCanvas.width,
+        faceCanvas.height
+      );
+
+
+      const irisIndices = [
+        LEFT_IRIS,
+        RIGHT_IRIS
+      ];
+
+
+      for (
+        const index of irisIndices
+      ) {
+
+        const point =
+          landmarks[index];
+
+
+        if (!point) {
+
+          continue;
+
+        }
+
+
+        const x =
+          point.x *
+          faceCanvas.width;
+
+
+        const y =
+          point.y *
+          faceCanvas.height;
+
+
+        faceCtx.beginPath();
+
+
+        faceCtx.arc(
+          x,
+          y,
+          5,
+          0,
+          Math.PI * 2
+        );
+
+
+        faceCtx.fillStyle =
+          "red";
+
+
+        faceCtx.fill();
+
+      }
+
+    }
+
+
+    /*
+    ============================================================
+    CALIBRATION POSITIONS
+    ============================================================
+    */
+
+    const calibrationPositions = [
+
+      {
+        x: 0.05,
+        y: 0.05
+      },
+
+      {
+        x: 0.50,
+        y: 0.05
+      },
+
+      {
+        x: 0.95,
+        y: 0.05
+      },
+
+      {
+        x: 0.05,
+        y: 0.50
+      },
+
+      {
+        x: 0.50,
+        y: 0.50
+      },
+
+      {
+        x: 0.95,
+        y: 0.50
+      },
+
+      {
+        x: 0.05,
+        y: 0.95
+      },
+
+      {
+        x: 0.50,
+        y: 0.95
+      },
+
+      {
+        x: 0.95,
+        y: 0.95
+      }
+
+    ];
+
+
+    /*
+    ============================================================
+    CALIBRATION
+    ============================================================
+    */
+
+    async function startCalibration() {
+
+      if (!tracking) {
+
+        setStatus(
+          "Start the camera first."
+        );
+
+        return;
+
+      }
+
+
+      if (calibrationRunning) {
+
+        return;
+
+      }
+
+
+      calibrationRunning =
+        true;
+
+
+      calibrateButton.disabled =
+        true;
+
+
+      calibrationSamples =
+        [];
+
+
+      gazeCursor.style.display =
+        "none";
+
+
+      calibration.style.display =
+        "block";
+
+
+      try {
+
+        await sleep(500);
+
+
+        for (
+          let i = 0;
+          i <
+          calibrationPositions.length;
+          i++
+        ) {
+
+          const target =
+            calibrationPositions[i];
+
+
+          const point =
+            document.createElement(
+              "div"
+            );
+
+
+          point.className =
+            "calibrationPoint";
+
+
+          point.style.left =
+            `${target.x * 100}%`;
+
+
+          point.style.top =
+            `${target.y * 100}%`;
+
+
+          calibration.appendChild(
+            point
+          );
+
+
+          calibrationMessage.innerHTML =
+            `
+              Look at the red dot.
+              <br>
+              <small>
+                Point ${i + 1} of 9
+              </small>
+            `;
+
+
+          /*
+          Give the user time to move
+          their eyes to the target.
+          */
+
+          await sleep(900);
+
+
+          const samples = [];
+
+
+          const sampleStart =
+            performance.now();
+
+
+          while (
+            performance.now() -
+            sampleStart <
+            1000
+          ) {
+
+            if (
+              faceLandmarker &&
+              video.readyState >= 2
+            ) {
+
+              try {
+
+                const result =
+                  faceLandmarker.detectForVideo(
+                    video,
+                    performance.now()
+                  );
+
+
+                if (
+                  result.faceLandmarks &&
+                  result.faceLandmarks.length
+                ) {
+
+                  samples.push(
+                    getEyePosition(
+                      result.faceLandmarks[0]
+                    )
+                  );
+
+                }
+
+              }
+
+              catch (error) {
+
+                console.warn(
+                  "Calibration detection:",
+                  error
+                );
+
+              }
+
+            }
+
+
+            await sleep(30);
+
+          }
+
+
+          point.remove();
+
+
+          if (
+            samples.length > 0
+          ) {
+
+            let sumX =
+              0;
+
+            let sumY =
+              0;
+
+
+            for (
+              const sample of samples
+            ) {
+
+              sumX +=
+                sample.x;
+
+              sumY +=
+                sample.y;
+
+            }
+
+
+            calibrationSamples.push({
+
+              targetX:
+                target.x,
+
+              targetY:
+                target.y,
+
+              eyeX:
+                sumX /
+                samples.length,
+
+              eyeY:
+                sumY /
+                samples.length
+
+            });
+
+          }
+
+        }
+
+
+        calibration.style.display =
+          "none";
+
+
+        calculateCalibration();
+
+
+        gazeCursor.style.display =
+          "block";
+
+
+        setStatus(
+          `Calibration complete. ` +
+          `${calibrationSamples.length}/9 points captured.`
+        );
+
+      }
+
+      finally {
+
+        calibrationRunning =
+          false;
+
+        calibrateButton.disabled =
+          false;
+
+      }
+
+    }
+
+
+    /*
+    ============================================================
+    LINEAR REGRESSION
+    ============================================================
+    */
+
+    function linearRegression(
+      x,
+      y
+    ) {
+
+      const n =
+        x.length;
+
+
+      if (n < 2) {
+
+        return {
+          slope: 1,
+          intercept: 0
+        };
+
+      }
+
+
+      let sumX = 0;
+
+      let sumY = 0;
+
+      let sumXY = 0;
+
+      let sumXX = 0;
+
+
+      for (
+        let i = 0;
+        i < n;
+        i++
+      ) {
+
+        sumX +=
+          x[i];
+
+        sumY +=
+          y[i];
+
+        sumXY +=
+          x[i] *
+          y[i];
+
+        sumXX +=
+          x[i] *
+          x[i];
+
+      }
+
+
+      const denominator =
+        n * sumXX -
+        sumX * sumX;
+
+
+      if (
+        Math.abs(denominator) <
+        0.000001
+      ) {
+
+        return {
+          slope: 1,
+          intercept: 0
+        };
+
+      }
+
+
+      const slope =
+        (
+          n * sumXY -
+          sumX * sumY
+        ) /
+        denominator;
+
+
+      const intercept =
+        (
+          sumY -
+          slope * sumX
+        ) /
+        n;
+
+
+      return {
+        slope,
+        intercept
+      };
+
+    }
+
+
+    /*
+    ============================================================
+    CALCULATE CALIBRATION
+    ============================================================
+    */
+
+    function calculateCalibration() {
+
+      if (
+        calibrationSamples.length <
+        3
+      ) {
+
+        return;
+
+      }
+
+
+      const xRegression =
+        linearRegression(
+
+          calibrationSamples.map(
+            sample =>
+              sample.eyeX
+          ),
+
+          calibrationSamples.map(
+            sample =>
+              sample.targetX
+          )
+
+        );
+
+
+      const yRegression =
+        linearRegression(
+
+          calibrationSamples.map(
+            sample =>
+              sample.eyeY
+          ),
+
+          calibrationSamples.map(
+            sample =>
+              sample.targetY
+          )
+
+        );
+
+
+      /*
+      --------------------------------------------------------
+      target coordinates are normalized 0..1.
+
+      Convert the regression to actual
+      screen pixel coordinates.
+      --------------------------------------------------------
+      */
+
+      mapX.scale =
+        xRegression.slope *
+        window.innerWidth;
+
+
+      mapX.offset =
+        xRegression.intercept *
+        window.innerWidth;
+
+
+      mapY.scale =
+        yRegression.slope *
+        window.innerHeight;
+
+
+      mapY.offset =
+        yRegression.intercept *
+        window.innerHeight;
+
+
+      console.log(
+        "Calibration X:",
+        mapX
+      );
+
+
+      console.log(
+        "Calibration Y:",
+        mapY
+      );
+
+    }
+
+
+    /*
+    ============================================================
+    WAIT FOR VIDEO
+    ============================================================
+    */
+
+    function waitForVideo() {
+
+      return new Promise(
+        resolve => {
+
+          if (
+            video.readyState >= 2 &&
+            video.videoWidth > 0
+          ) {
+
+            resolve();
+
+            return;
+
+          }
+
+
+          const check =
+            () => {
+
+              if (
+                video.readyState >= 2 &&
+                video.videoWidth > 0
+              ) {
+
+                resolve();
+
+                return;
+
+              }
+
+
+              requestAnimationFrame(
+                check
+              );
+
+            };
+
+
+          check();
+
+        }
+      );
+
+    }
+
+
+    /*
+    ============================================================
+    UTILITY
+    ============================================================
+    */
+
+    function sleep(ms) {
+
+      return new Promise(
+        resolve =>
+          setTimeout(
+            resolve,
+            ms
+          )
+      );
+
+    }
+
+
+    /*
+    ============================================================
+    BUTTON EVENTS
+    ============================================================
+    */
+
+    startButton.addEventListener(
+      "click",
+      startCamera
+    );
+
+
+    stopButton.addEventListener(
+      "click",
+      stopCamera
+    );
+
+
+    calibrateButton.addEventListener(
+      "click",
+      async () => {
+
+        try {
+
+          await startCalibration();
+
+        }
+
+        catch (error) {
+
+          console.error(
+            "Calibration error:",
+            error
+          );
+
+          showError(
+            error
+          );
+
+        }
+
+      }
+    );
+
+
+    /*
+    ============================================================
+    INITIAL UI
+    ============================================================
+    */
+
+    startButton.disabled =
+      false;
+
+
+    calibrateButton.disabled =
+      true;
+
+
+    stopButton.disabled =
+      true;
+
+
+    setStatus(
+      "Ready. Click \"Start Camera\"."
+    );
+
+
+    console.log(
+      "Eye Tracker UI loaded."
+    );
+
+
+    console.log(
+      "Start button:",
+      startButton
+    );
+
+  </script>
+
+</body>
+
+</html>
