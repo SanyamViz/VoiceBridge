@@ -3,14 +3,14 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import { getMessaging, isSupported } from 'firebase/messaging';
 
-// Firebase configuration using Vite environment variables
+// Firebase configuration using Vite environment variables (with fallbacks for demo/Vercel deployments)
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDemoKeyForVoiceBridgeHackathonDemo",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "voicebridge-demo.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "voicebridge-demo",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "voicebridge-demo.appspot.com",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "100000000000",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:100000000000:web:abcdef123456789"
 };
 
 // Initialize Firebase App
